@@ -59,12 +59,25 @@ router.get('/', function(req, res) {
 var score18xx_db  = require('./controladores/score18xx_db');
 
 router.route('/partida')
-    // create a partida (accessed at POST http://localhost:3000/api/partida)
+    // crea una partida (accessed at POST http://localhost:3000/api/partida)
     .post(score18xx_db.addPartida);
 
 router.route('/juegos')
-    // create a partida (accessed at GET http://localhost:3000/api/juegos)
+    // recoge todos los juegos (accessed at GET http://localhost:3000/api/juegos)
     .get(score18xx_db.getJuegos);
+
+router.route('/partida/:id')
+    // recoge una partida (accessed at GET http://localhost:3000/api/partida/id)
+    .get(score18xx_db.getPartida)
+    // actualiza una partida (accessed at PUT http://localhost:3000/api/partida/id)
+    .put(score18xx_db.putPartida)
+    // borra una partida (accessed at DELETE http://localhost:3000/api/partida/id)
+    .delete(score18xx_db.borrarPartida);    
+    
+
+router.route('/lista')
+    // recoge todas las partidas (accessed at GET http://localhost:3000/api/lista)
+    .get(score18xx_db.getListaPartidas);
 
 // REGISTER OUR ROUTES -------------------------------
 // all of our routes will be prefixed with /api
