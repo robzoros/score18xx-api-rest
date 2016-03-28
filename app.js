@@ -1,11 +1,25 @@
-var express         = require("express"),
-    app             = express(),
-    bodyParser      = require("body-parser"),
-    mongoose        = require('mongoose'),
-    request         = require('request');	
-    
+var express     = require("express"),
+    app         = express(),
+    bodyParser  = require("body-parser"),
+    mongoose    = require('mongoose'),
+    request     = require('request'),
+    morgan      = require('morgan'),
+    passport	= require('passport'), 
+    config      = require('./config/database'), // get db config file
+    User        = require('./models/user'), // get the mongoose model
+    jwt         = require('jwt-simple'),
+    fs          = require('fs'),
+    https       = require('https'),
+    key         = fs.readFileSync('./config/score18xx-key.pem'),
+    cert        = fs.readFileSync('./config/score18xx-cert.pem'),
+    global      = require('./global'),
+    https_options = {
+        key: key,
+        cert: cert
+    };
+
 // Connection to DB	
-mongoose.connect('mongodb://localhost/score18xx', function(err, res) {  
+mongoose.connect(config.database, function(err, res) {  
   if(err) {
      throw err;
   } else{
@@ -14,6 +28,9 @@ mongoose.connect('mongodb://localhost/score18xx', function(err, res) {
 });	
 
 var Partida  = require('./models/partida');
+
+// pass passport for configuration
+require('./config/passport')(passport);
 
 //CORS
 var allowCrossDomain = function(req, res, next) {
@@ -38,17 +55,50 @@ app.use(allowCrossDomain);
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+// log to console
+app.use(morgan('dev'));
+ 
+// Use the passport package in our application
+app.use(passport.initialize());
+
 // ROUTES FOR OUR API
 // =============================================================================
 var router = express.Router();              // get an instance of the express Router
 
 // Middleware to use for all requests
 router.use(function(req, res, next) {
-    // do logging
-    console.log(req.body);
+    // CORS
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    next(); // make sure we go to the next routes and don't stop here
+    
+    // Necesita Token para acceder a los datos
+    var paths = ["/signup", "/autenticar", "/juegos"];
+    console.log(req._parsedUrl.path);
+    if ( paths.indexOf(req._parsedUrl.path) > -1 ) {
+        next();
+    }
+    else {
+        var token = global.getToken(req.headers);
+        if (token) {
+            var decoded = jwt.decode(token, config.secret);
+            User.findOne({
+                name: decoded.name
+            }, function(err, user) {
+                if (err) throw err;
+
+                if (!user) {
+                    return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
+                } else {
+                    next(); // make sure we go to the next routes and don't stop here
+                }
+            });
+        } else {
+            return res.status(403).send({success: false, msg: 'No token provided.'});
+        }
+    }
+        
+    
+    
 });
 
 
@@ -93,6 +143,35 @@ router.route('/juegos')
     // recoge todos los juegos (accessed at GET http://localhost:3000/api/juegos)
     .get(score18xx_db.getJuegos);
 
+router.route('/signup')
+    // create a new user account (POST http://localhost:3000/api/signup)
+    .post(score18xx_db.crearUsuario);
+
+router.route('/autenticar')
+    // route to authenticate a user (get http://localhost:3000/api/autenticar)
+    .post(score18xx_db.login);
+
+router.get('/userinfo', passport.authenticate('jwt', { session: false}), function(req, res) {
+    // route to a restricted info (GET http://localhost:3000/api/memberinfo)    
+    var token = global.getToken(req.headers);
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+        User.findOne({
+            name: decoded.name
+        }, function(err, user) {
+            if (err) throw err;
+
+            if (!user) {
+                return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
+            } else {
+                res.json({success: true, name:user.name, rol: user.rol});
+            }
+        });
+    } else {
+        return res.status(403).send({success: false, msg: 'No token provided.'});
+    }
+});
+
 // REGISTER OUR ROUTES -------------------------------
 // all of our routes will be prefixed with /api
 app.use('/api', router);
@@ -104,7 +183,10 @@ app.use('/proxy', function(req, res) {
 });
 
 
-app.listen(3000, function() {  
+/* app.listen(3000, function() {  
     console.log("Servidor esperando peticiones en http://localhost:3000");
-   
+}); */
+
+https.createServer(https_options, app).listen(3000, function() {  
+    console.log("Servidor esperando peticiones en http://localhost:3000");
 });
