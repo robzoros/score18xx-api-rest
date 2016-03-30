@@ -8,7 +8,9 @@ var global  = require('../global');
 // Promesa para verificar usuario
 function verificarUsuario (req, res) {
     return new Promise ( function(resolve, reject) {
+        console.log(user);
         User.findOne({name: req.body.usuario}, function(err, user) {
+            console.log(user);
             if (err) {
                 console.log(err);
                 return res.status(500).send(err.message);
@@ -31,8 +33,8 @@ function verificarToken (req, res, needAdmin) {
         var token = global.getToken(req.headers);
         if (token) {
             var decoded = jwt.decode(token, config.secret);
-
             User.findOne({name: decoded.name}, function(err, user) {
+                console.log(user);
                 if (err) {
                     console.log(err);
                     return res.status(500).send( err.message);
@@ -47,7 +49,6 @@ function verificarToken (req, res, needAdmin) {
                     console.log('El usuario %s no tiene privilegios sobre la tabla juegos.', user.name);
                     return res.status(403).send('El usuario ' + user.name + ' no tiene privilegios sobre la tabla juegos.');
                 }
-
                 resolve(req, res);
             });
         }
@@ -56,6 +57,7 @@ function verificarToken (req, res, needAdmin) {
             return res.status(403).send('Authentication failed. Token not found.');
         };
     });
+
 };
 
 // Funciones que llamarán en las promesas
@@ -118,8 +120,8 @@ nuevoJuego = function(req, res) {
         description:    req.body.description,
         companies:    	req.body.companies
     });
-
     juego.save(function(err) {
+
         if (err) {
             console.log(err);
             return res.status(500).send( err.message);
@@ -129,18 +131,23 @@ nuevoJuego = function(req, res) {
 };
 
 deleteJuego = function(req, res) {
+    console.log(req.params);
+    var resp = res;
     Juego.findById(req.params.id, function(err, juego) {
+        console.log(juego);        
         juego.remove(function(err) {
             if (err) {
                 console.log(err);
                 return res.status(500).send( err.message);
             };
-            res.status(200).send();
+            console.log('Borrando');     
+            resp.status(200).send();
         });
     });
 };
         
 actualizarJuego = function(req, res) {
+    var resp = res;    
     Juego.findById(req.params.id, function(err, juego) {
         if (err) {
             console.log(err);
@@ -153,7 +160,7 @@ actualizarJuego = function(req, res) {
         juego.save(function(err){
             if (err) {
                 console.log(err);
-                return res.status(500).send( err.message);
+                return resp.status(500).send( err.message);
             };
             res.status(200).jsonp(juego);
         });
@@ -166,19 +173,26 @@ obtenerPartida = function (req, res) {
             console.log(err);
             return res.status(500).send(err.message);
         }
-        else {        
-            res.status(200).jsonp(partida);
+        else {
+            if (partida)
+                res.status(200).jsonp(partida);
+            else
+                res.status(404).send("Partida no encontrada");
         }
     });
 };
 
 //CRUD Partidas
 exports.addPartida = function(req, res) {
-    verificarUsuario(req, res).then(nuevaPartida(req, res));
+    verificarUsuario(req, res).then( function() {
+        nuevaPartida(req, res);
+    });
 };
 
 exports.getPartida = function(req, res) {  
-    verificarToken(req, res, false).then(obtenerPartida(req, res));
+    //verificarToken(req, res, false).then( function() {
+        obtenerPartida(req, res);
+    //});
 };
 
 exports.getListaPartidas = function(req, res) {  
@@ -202,7 +216,9 @@ exports.getListaPartidas = function(req, res) {
 };
 
 exports.putPartida = function(req, res) {  
-    verificarUsuario(req, res).then(actualizaPartida(req, res));
+    verificarUsuario(req, res).then( function(){
+        actualizaPartida(req, res);
+    });
 };
    
     
@@ -236,14 +252,19 @@ exports.borrarPartida = function(req, res) {
 
 //CRUD Juegos
 exports.addJuego = function(req, res) {  
-    verificarToken(req, res, true).then(nuevoJuego(req, res));
+    verificarToken(req, res, true).then( function () {
+        nuevoJuego(req, res);
+    });
 };
 
 exports.getJuegos = function(req, res) {  
     //console.log('GET /juegos');
     
     Juego.find(function(err, juegos) {
-        if(err) res.send(500, err.message);
+        if (err) {
+            console.log(err);
+            return res.status(500).send(err.message);
+        };
         res.status(200).jsonp(juegos);
     });
 };
@@ -252,17 +273,27 @@ exports.getJuego = function(req, res) {
     //console.log('GET /juego id: ' +req.params.id);
     
     Juego.findById(req.params.id,function(err, juego) {
-        if(err) res.send(500, err.message);
-        res.status(200).jsonp(juego);
+        if (err) {
+            console.log(err);
+            return res.status(500).send(err.message);
+        };
+        if (juego)
+            res.status(200).jsonp(juego);
+        else
+            res.status(404).send("Juego no encontrado");
     });
 };
 
 exports.putJuego = function(req, res) {  
-    verificarToken(req, res, true).then(actualizarJuego(req, res));
+    verificarToken(req, res, true).then(function() {
+        actualizarJuego(req, res);
+    });
 };   
     
 exports.borrarJuego = function(req, res) {
-    verificarToken(req, res, true).then(deleteJuego(req, res));
+    verificarToken(req, res, true).then( function() {
+        deleteJuego(req, res);
+    });
 };
 
 // usuarios
@@ -288,25 +319,32 @@ exports.crearUsuario = function(req, res) {
 };
 
 exports.login = function(req, res) {
-    //console.log('POST /login');
+    console.log('POST /login');
     //console.log(req.body.name);
     User.findOne({
         name: req.body.name
     }, function(err, user) {
+        console.log('FIND User');
+
         if (err) throw err;
  
         if (!user) {
+            console.log('NOT FIND User');
             res.send({success: false, msg: 'Authentication failed. User not found.'});
         } else {
 
             // check if password matches
             user.comparePassword(req.body.password, function (err, isMatch) {
+                console.log('Compare Pass');
+
                 if (isMatch && !err) {
                     // if user is found and password is right create a token
                     var token = jwt.encode(user, config.secret);
                     // return the information including token as JSON
                     res.json({success: true, token: 'JWT ' + token, rol: user.rol});
                 } else {
+                    console.log('Not Compare Pass');
+
                     res.send({success: false, msg: 'Authentication failed. Wrong password.'});
                 }
             });

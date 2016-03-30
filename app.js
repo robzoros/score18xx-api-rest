@@ -37,14 +37,15 @@ require('./config/passport')(passport);
 var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, Authorization, X-Requested-With, Content-Type, Accept');
-
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    
     // intercept OPTIONS method
     if ('OPTIONS' === req.method) {
-      res.send(200);
+        next();
+        res.status(200).send();
     }
     else {
-      next();
+        next();
     }
 };
 
@@ -74,38 +75,40 @@ router.use(function(req, res, next) {
     res.header("Access-Control-Allow-Headers", "Origin, Authorization, X-Requested-With, Content-Type, Accept");
     */
 
-    // Necesita Token para acceder a los datos
-    var paths = ["/signup", "/autenticar", "/juegos"];
-    console.log(req._parsedUrl.path);
-    if ( paths.indexOf(req._parsedUrl.path) > -1 ) {
+    if ('OPTIONS' === req.method) {
         next();
     }
     else {
-        var token = global.getToken(req.headers);
-        if (token) {
-            var decoded = jwt.decode(token, config.secret);
-            User.findOne({
-                name: decoded.name
-            }, function(err, user) {
-                if (err) throw err;
-
-                if (!user) {
-                    return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
-                } else {
-                    next(); // make sure we go to the next routes and don't stop here
-                }
-            });
-        } else {
-            return res.status(403).send({success: false, msg: 'No token provided.'});
+        next();
+        // Necesita Token para acceder a los datos
+        /*var paths = ["/signup", "/autenticar", "/juegos", ];
+        if ( paths.indexOf(req._parsedUrl.path) > -1 ) {
+            next();
         }
+        else {
+            var token = global.getToken(req.headers);
+            if (token) {
+                var decoded = jwt.decode(token, config.secret);
+                User.findOne({
+                    name: decoded.name
+                }, function(err, user) {
+                    if (err) throw err;
+
+                    if (!user) {
+                        return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
+                    } else {
+                        next(); // make sure we go to the next routes and don't stop here
+                    }
+                });
+            } else {
+                return res.status(403).send({success: false, msg: 'No token provided.'});
+            }
+        }*/
     }
-        
-    
-    
 });
 
 
-// test route to make sure everything is working (accessed at GET http://localhost:8080/api)
+// test route to make sure everything is working (accessed at GET http://localhost:3000/api)
 router.get('/', function(req, res) {
     res.json({ message: 'hooray! welcome to our api!' });   
 });
