@@ -27,8 +27,6 @@ mongoose.connect(config.database, function(err, res) {
   }
 });	
 
-var Partida  = require('./models/partida');
-
 // pass passport for configuration
 require('./config/passport')(passport);
 
@@ -108,7 +106,7 @@ router.use(function(req, res, next) {
 });
 
 
-// test route to make sure everything is working (accessed at GET http://localhost:3000/api)
+// test route to make sure everything is working (accessed at GET http://local-server:Port/api)
 router.get('/', function(req, res) {
     res.json({ message: 'hooray! welcome to our api!' });   
 });
@@ -118,47 +116,51 @@ router.get('/', function(req, res) {
 var score18xx_db  = require('./controladores/score18xx_db');
 
 router.route('/partida')
-    // crea una partida (accessed at POST http://localhost:3000/api/partida)
+    // crea una partida (accessed at POST http://local-server:Port/api/partida)
     .post(score18xx_db.addPartida);
 
 router.route('/partida/:id')
-    // recoge una partida (accessed at GET http://localhost:3000/api/partida/id)
+    // recoge una partida (accessed at GET http://local-server:Port/api/partida/id)
     .get(score18xx_db.getPartida)
-    // actualiza una partida (accessed at PUT http://localhost:3000/api/partida/id)
+    // actualiza una partida (accessed at PUT http://local-server:Port/api/partida/id)
     .put(score18xx_db.putPartida)
-    // borra una partida (accessed at DELETE http://localhost:3000/api/partida/id)
+    // borra una partida (accessed at DELETE http://local-server:Port/api/partida/id)
     .delete(score18xx_db.borrarPartida);
 
 router.route('/lista')
-    // recoge todas las partidas (accessed at GET http://localhost:3000/api/lista)
+    // recoge todas las partidas (accessed at GET http://local-server:Port/api/lista)
     .get(score18xx_db.getListaPartidas);
 
 router.route('/juego')
-     // crea un juego (accessed at POST http://localhost:3000/api/juego)
+     // crea un juego (accessed at POST http://local-server:Port/api/juego)
     .post(score18xx_db.addJuego);
 
 router.route('/juego/:id')
-    // actualiza una juego (accessed at PUT http://localhost:3000/api/juego/id)
+    // actualiza una juego (accessed at PUT http://local-server:Port/api/juego/id)
     .get(score18xx_db.getJuego)
-    // actualiza una juego (accessed at PUT http://localhost:3000/api/juego/id)
+    // actualiza una juego (accessed at PUT http://local-server:Port/api/juego/id)
     .put(score18xx_db.putJuego)
-    // borra una juego (accessed at DELETE http://localhost:3000/api/juego/id)
+    // borra una juego (accessed at DELETE http://local-server:Port/api/juego/id)
     .delete(score18xx_db.borrarJuego);    
 
 router.route('/juegos')
-    // recoge todos los juegos (accessed at GET http://localhost:3000/api/juegos)
+    // recoge todos los juegos (accessed at GET http://local-server:Port/api/juegos)
     .get(score18xx_db.getJuegos);
 
 router.route('/signup')
-    // create a new user account (POST http://localhost:3000/api/signup)
-    .post(score18xx_db.crearUsuario);
+    // create a new user account (POST http://local-server:Port/api/signup)
+    .post(score18xx_db.crearUsuario)
+    // reset password (PUT http://local-server:Port/api/signup)
+    .put(score18xx_db.reset);
 
 router.route('/autenticar')
-    // route to authenticate a user (get http://localhost:3000/api/autenticar)
-    .post(score18xx_db.login);
+    // route to authenticate a user (POST http://local-server:Port/api/autenticar)
+    .post(score18xx_db.login)
+    // cambiar password (PUT http://local-server:Port/api/autenticar)
+    .put(score18xx_db.cambioPass);
 
 router.get('/userinfo', passport.authenticate('jwt', { session: false}), function(req, res) {
-    // route to a restricted info (GET http://localhost:3000/api/memberinfo)    
+    // route to a restricted info (GET http://local-server:Port/api/memberinfo)    
     var token = global.getToken(req.headers);
     if (token) {
         var decoded = jwt.decode(token, config.secret);
@@ -178,6 +180,24 @@ router.get('/userinfo', passport.authenticate('jwt', { session: false}), functio
     }
 });
 
+// Agregadores varios
+router.route('/pcount')
+    // Cuenta de partidas (accessed at GET http://local-server:Port/api/pcount)
+    .get(score18xx_db.getCuentaPartidas);
+
+router.route('/pjcount')
+    // Estadísticas de partidas por juegos (accessed at GET http://local-server:Port/api/pjcount)
+    .get(score18xx_db.getCuentaJuegosP);
+    
+router.route('/jcount')
+    // Estadísticas de partidas por juegos (accessed at GET http://local-server:Port/api/jcount)
+    .get(score18xx_db.getCuentaJuegos);
+
+router.route('/ucount')
+    // Estadísticas de usuarios (accessed at GET http://local-server:Port/api/ucount)
+    .get(score18xx_db.getCuentaUsuarios);
+
+
 // REGISTER OUR ROUTES -------------------------------
 // all of our routes will be prefixed with /api
 app.use('/api', router);
@@ -190,9 +210,12 @@ app.use('/proxy', function(req, res) {
 
 
 /* app.listen(3000, function() {  
-    console.log("Servidor esperando peticiones en http://localhost:3000");
+    console.log("Servidor esperando peticiones en http://local-server:Port");
 }); */
 
-https.createServer(https_options, app).listen(3000, function() {  
-    console.log("Servidor esperando peticiones en http://localhost:3000");
+var server_port = process.env.OPENSHIFT_NODEJS_PORT || 3000;
+var server_ip_address = process.env.OPENSHIFT_NODEJS_IP || '127.0.0.1';
+
+https.createServer(https_options, app).listen(server_port, server_ip_address, function() {  
+    console.log( "Listening on " + server_ip_address + ", server_port " + server_port );
 });

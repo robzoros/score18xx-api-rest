@@ -4,13 +4,25 @@ var User    = require('../models/user.js');
 var jwt     = require('jwt-simple');
 var config  = require('../config/database'); // get db config file
 var global  = require('../global');
+var email   = require('../mail');
+
+function obtenerUsuarioToken(req, cb) {
+    var token = global.getToken(req.headers);
+    if (token) {
+        var decoded = jwt.decode(token, config.secret);
+        User.findOne({name: decoded.name}, function(err, user) {
+            cb (err, user);
+        });
+    }
+    else {
+        cb("Error: Token no encontrado");
+    }
+};
 
 // Promesa para verificar usuario
 function verificarUsuario (req, res) {
     return new Promise ( function(resolve, reject) {
-        console.log(user);
         User.findOne({name: req.body.usuario}, function(err, user) {
-            console.log(user);
             if (err) {
                 console.log(err);
                 return res.status(500).send(err.message);
@@ -34,7 +46,6 @@ function verificarToken (req, res, needAdmin) {
         if (token) {
             var decoded = jwt.decode(token, config.secret);
             User.findOne({name: decoded.name}, function(err, user) {
-                console.log(user);
                 if (err) {
                     console.log(err);
                     return res.status(500).send( err.message);
@@ -298,20 +309,21 @@ exports.borrarJuego = function(req, res) {
 
 // usuarios
 exports.crearUsuario = function(req, res) {
-    //console.log('POST /signup');
-    if (!req.body.name || !req.body.password) {
+    if (!req.body.name || !req.body.password || !req.body.email) {
         res.json({success: false, msg: 'Please pass name and password.'});
     } else {
         var newUser = new User({
             name: req.body.name,
             password: req.body.password,
-            rol: "Consulta"
+            rol: "Consulta",
+            email: req.body.email
         });
 
         // save the user
         newUser.save(function(err) {
             if (err) {
-                return res.json({success: false, msg: 'Username already exists.'});
+                console.log('El usuario o el correo ya existen.');
+                return res.json({success: false, msg: 'El usuario o el correo ya existen.'});
             }
             res.json({success: true, msg: 'Successful created new user.'});
         });
@@ -319,24 +331,21 @@ exports.crearUsuario = function(req, res) {
 };
 
 exports.login = function(req, res) {
-    console.log('POST /login');
-    //console.log(req.body.name);
     User.findOne({
         name: req.body.name
     }, function(err, user) {
-        console.log('FIND User');
-
-        if (err) throw err;
+        if (err) {
+            console.log(err);
+            return res.status(500).send(err);
+        }
  
         if (!user) {
-            console.log('NOT FIND User');
+            console.log('Authentication failed. User not found.');
             res.send({success: false, msg: 'Authentication failed. User not found.'});
         } else {
 
             // check if password matches
             user.comparePassword(req.body.password, function (err, isMatch) {
-                console.log('Compare Pass');
-
                 if (isMatch && !err) {
                     // if user is found and password is right create a token
                     var token = jwt.encode(user, config.secret);
@@ -349,6 +358,203 @@ exports.login = function(req, res) {
                 }
             });
         }
+    });
+};
+
+exports.reset = function(req, res) {
+    User.findOne({email: req.body.email}, function(err, user) {
+        if (err) {
+            console.log(err);
+            return res.status(500).send(err.message);
+        };
+
+        if (!user) {
+            console.log('El email proporcionado no existe.');
+            return res.status(403).send('El email proporcionado no existe.');
+        } 
+        else {
+            var make_passwd = function(n, a) {
+              var index = (Math.random() * (a.length - 1)).toFixed(0);
+              return n > 0 ? a[index] + make_passwd(n - 1, a) : '';
+            };
+            var password = make_passwd(7, 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890');
+            
+            user.password = password;
+            
+            user.save(function(err) {
+                if (err) {
+                    console.log('Error con email facilitado.');
+                    return res.json({success: false, msg: 'Error con email facilitado.'});
+                }
+                email.sendMail(user, password, function() {
+                    res.json({success: true, msg: 'Password creada correctamente.'});
+                });
+                    
+            });
+        };
+    });    
+}
+
+exports.cambioPass = function(req, res) {
+    obtenerUsuarioToken(req, function(err, user) {
+        if (err) {
+            console.log(err);
+            return res.status(500).send(err.message);
+        };
+ 
+        if (!user) {
+            console.log('User not found.');
+            return res.status(403).send('User not found.');
+        } else {
+
+            // Usuario encontrado, cambiamos la password.
+            user.comparePassword(req.body.password, function (err, isMatch) {
+                if (isMatch && !err) {
+                    user.password = req.body.newPassword;
+
+                    // if user is found and password is right create a token
+                    user.save(function(err) {
+                        if (err) {
+                            console.log(err);
+                            return res.json(err);
+                        }
+
+                        // Mandamos nuevo token
+                        var token = jwt.encode(user, config.secret);
+                        // return the information including token as JSON
+                        res.json({success: true, token: 'JWT ' + token, rol: user.rol});
+
+                    });
+                } else {
+                    console.log('Not Compare Pass');
+
+                    res.send({success: false, msg: 'Authentication failed. Wrong password.'});
+                }
+            });
+        };
+    });    
+}
+
+// ***********************************
+// Agregadores
+// ***********************************
+
+// Función DRY
+function estadisticas(res, estad, err, user) {
+    console.log('Estadisticas');
+    console.log(user);
+
+    if(err) {
+        console.log(err);
+        return res.status(500).send(err.message);
+    }
+        
+    if (user === -1) {
+        /// No hay token
+        console.log('Authentication failed. Token not found.');
+        return res.status(403).send('Authentication failed. Token not found.');
+    }
+    else {
+        // Hay token
+        if (!user) {
+            console.log('Authentication failed. User not found.');
+            return res.status(403).send('Authentication failed. User not found.');
+        } 
+        
+        // Definimos las variables
+        var groupJxPartidaUser = [
+            { $match: {
+                usuario: user.name
+            }},
+            { $group: {
+                _id: "$juego._name",
+                cuenta: { $sum: 1  },
+                media_j: {$avg: "$jugadores.numero"}
+            }}];
+        var groupJxPartidaAdmin = { 
+            $group: {
+                _id: "$juego._name",
+                cuenta: { $sum: 1  },
+                media_j: {$avg: "$jugadores.numero"}
+            }};
+        var groupPartidasUser = { 
+            $group: {
+                _id: user.name,
+                cuenta: { $sum: 1  }
+            }};
+        var groupPartidasAdmin = { 
+            $group: {
+                _id: null,
+                cuenta: { $sum: 1  },
+                media_j: {$avg: "$jugadores.numero"}
+            }};
+        var groupJuegos = { 
+            $group: {
+                _id: null,
+                cuenta: { $sum: 1  }
+            }};
+        var groupUsuarios = {
+            $group: {
+                _id: null,
+                cuenta: { $sum: 1  }
+            }};
+        var esquema;
+        var groupVariable;
+        switch (estad) {
+            case 'groupJxPartida':
+                esquema = Partida;
+                if (user.rol === 'Consulta')
+                    groupVariable = groupJxPartidaUser;
+                else
+                    groupVariable = groupJxPartidaAdmin;
+                break;
+            case 'groupPartidas':
+                esquema = Partida;
+                if (user.rol === 'Consulta')
+                    groupVariable = groupPartidasUser;
+                else
+                    groupVariable = groupPartidasAdmin;
+                break;         
+            case 'groupJuegos':
+                esquema = Juego;
+                groupVariable = groupJuegos;
+                break;
+            case 'groupUsuarios':
+                esquema = User;
+                groupVariable = groupUsuarios;
+                break;
+        };
+        esquema.aggregate(groupVariable, function (err, result) { 
+            if (err) {
+                console.log(err);
+                return res.status(403).send(err);
+            }
+            res.status(200).jsonp(result);
+        });
+    }
+};
+
+exports.getCuentaJuegosP = function(req, res) {  
+    obtenerUsuarioToken( req, function(err, user) {
+        estadisticas(res, 'groupJxPartida', err, user);
+    });
+};
+
+exports.getCuentaPartidas = function(req, res) { 
+    obtenerUsuarioToken( req, function(err, user) {
+        estadisticas(res, 'groupPartidas', err, user );
+    });
+};
+
+exports.getCuentaJuegos = function(req, res) {  
+    obtenerUsuarioToken( req, function(err, user) {
+        estadisticas(res, 'groupJuegos', err, user );
+    });
+};
+
+exports.getCuentaUsuarios = function(req, res) {  
+    obtenerUsuarioToken( req, function(err, user) {
+        estadisticas(res, 'groupUsuarios', err, user );
     });
 };
 
