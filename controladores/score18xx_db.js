@@ -374,8 +374,8 @@ exports.reset = function(req, res) {
         } 
         else {
             var make_passwd = function(n, a) {
-              var index = (Math.random() * (a.length - 1)).toFixed(0);
-              return n > 0 ? a[index] + make_passwd(n - 1, a) : '';
+                var index = (Math.random() * (a.length - 1)).toFixed(0);
+                return n > 0 ? a[index] + make_passwd(n - 1, a) : '';
             };
             var password = make_passwd(7, 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890');
             
@@ -441,9 +441,6 @@ exports.cambioPass = function(req, res) {
 
 // Función DRY
 function estadisticas(res, estad, err, user) {
-    console.log('Estadisticas');
-    console.log(user);
-
     if(err) {
         console.log(err);
         return res.status(500).send(err.message);
@@ -477,11 +474,14 @@ function estadisticas(res, estad, err, user) {
                 cuenta: { $sum: 1  },
                 media_j: {$avg: "$jugadores.numero"}
             }};
-        var groupPartidasUser = { 
-            $group: {
-                _id: user.name,
+        var groupPartidasUser = [
+            { $match: {
+                usuario: user.name
+            }},
+            { $group: {
+                _id: null,
                 cuenta: { $sum: 1  }
-            }};
+            }}];
         var groupPartidasAdmin = { 
             $group: {
                 _id: null,
@@ -503,6 +503,7 @@ function estadisticas(res, estad, err, user) {
         switch (estad) {
             case 'groupJxPartida':
                 esquema = Partida;
+                console.log(user.rol);
                 if (user.rol === 'Consulta')
                     groupVariable = groupJxPartidaUser;
                 else
@@ -510,6 +511,7 @@ function estadisticas(res, estad, err, user) {
                 break;
             case 'groupPartidas':
                 esquema = Partida;
+                console.log(user.rol);
                 if (user.rol === 'Consulta')
                     groupVariable = groupPartidasUser;
                 else
