@@ -503,7 +503,6 @@ function estadisticas(res, estad, err, user) {
         switch (estad) {
             case 'groupJxPartida':
                 esquema = Partida;
-                console.log(user.rol);
                 if (user.rol === 'Consulta')
                     groupVariable = groupJxPartidaUser;
                 else
@@ -511,7 +510,6 @@ function estadisticas(res, estad, err, user) {
                 break;
             case 'groupPartidas':
                 esquema = Partida;
-                console.log(user.rol);
                 if (user.rol === 'Consulta')
                     groupVariable = groupPartidasUser;
                 else
