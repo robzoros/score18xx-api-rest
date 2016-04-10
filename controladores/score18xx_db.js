@@ -40,7 +40,7 @@ function verificarUsuario (req, res) {
 };
 
 // Promesa para verificar token y usuario administrador
-function verificarToken (req, res, needAdmin) {
+function verificarToken (req, res) {
     return new Promise ( function(resolve, reject) {
         var token = global.getToken(req.headers);
         if (token) {
@@ -56,11 +56,7 @@ function verificarToken (req, res, needAdmin) {
                     return res.status(403).send('Authentication failed. User not found.');
                 } 
 
-                if (needAdmin && (user.rol !== "Administrador")) {
-                    console.log('El usuario %s no tiene privilegios sobre la tabla juegos.', user.name);
-                    return res.status(403).send('El usuario ' + user.name + ' no tiene privilegios sobre la tabla juegos.');
-                }
-                resolve(req, res);
+                resolve(user);
             });
         }
         else {
@@ -129,7 +125,8 @@ nuevoJuego = function(req, res) {
         _name:   	req.body._name,
         _id:            req.body._id,
         description:    req.body.description,
-        companies:    	req.body.companies
+        companies:    	req.body.companies,
+        usuario:        req.body.usuario
     });
     juego.save(function(err) {
 
@@ -141,40 +138,52 @@ nuevoJuego = function(req, res) {
     }); 
 };
 
-deleteJuego = function(req, res) {
-    console.log(req.params);
+deleteJuego = function(req, res, user) {
     var resp = res;
     Juego.findById(req.params.id, function(err, juego) {
-        console.log(juego);        
-        juego.remove(function(err) {
-            if (err) {
-                console.log(err);
-                return res.status(500).send( err.message);
-            };
-            console.log('Borrando');     
-            resp.status(200).send();
-        });
+        if ((juego.usuario === user.name) || ((juego.usuario === 'admin') && (user.rol === 'Administrador')) ) {
+            juego.remove(function(err) {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).send( err.message);
+                };
+                resp.status(200).send();
+            });
+            
+        }
+        else{
+            console.log('El usuario %s no tiene privilegios sobre el juego.', user.name);
+            return res.status(403).send('El usuario ' + user.name + ' no tiene privilegios sobre el juego.');
+        };
     });
 };
         
-actualizarJuego = function(req, res) {
+actualizarJuego = function(req, res, user) {
     var resp = res;    
     Juego.findById(req.params.id, function(err, juego) {
         if (err) {
             console.log(err);
             return res.status(500).send( err.message);
         };
-        juego._name = req.body._name;
-        juego.description = req.body.description;
-        juego.companies = req.body.companies;
+        if ((juego.usuario === user.name) || ((juego.usuario === 'admin') && (user.rol === 'Administrador')) ) {
 
-        juego.save(function(err){
-            if (err) {
-                console.log(err);
-                return resp.status(500).send( err.message);
-            };
-            res.status(200).jsonp(juego);
-        });
+            juego._name = req.body._name;
+            juego.description = req.body.description;
+            juego.companies = req.body.companies;
+            juego.usuario = req.body.usuario;
+
+            juego.save(function(err){
+                if (err) {
+                    console.log(err);
+                    return resp.status(500).send( err.message);
+                };
+                res.status(200).jsonp(juego);
+            });
+        }
+        else{
+            console.log('El usuario %s no tiene privilegios sobre el juego.', user.name);
+            return res.status(403).send('El usuario ' + user.name + ' no tiene privilegios sobre el juego.');
+        };
     });
 };
 
@@ -201,9 +210,7 @@ exports.addPartida = function(req, res) {
 };
 
 exports.getPartida = function(req, res) {  
-    //verificarToken(req, res, false).then( function() {
-        obtenerPartida(req, res);
-    //});
+    obtenerPartida(req, res);
 };
 
 exports.getListaPartidas = function(req, res) {  
@@ -263,47 +270,76 @@ exports.borrarPartida = function(req, res) {
 
 //CRUD Juegos
 exports.addJuego = function(req, res) {  
-    verificarToken(req, res, true).then( function () {
+    verificarToken(req, res).then( function () {
         nuevoJuego(req, res);
     });
 };
 
 exports.getJuegos = function(req, res) {  
     //console.log('GET /juegos');
-    
-    Juego.find(function(err, juegos) {
+    obtenerUsuarioToken(req, function(err, user) {
         if (err) {
             console.log(err);
             return res.status(500).send(err.message);
         };
-        res.status(200).jsonp(juegos);
+ 
+        if (!user) {
+            console.log('User not found.');
+            return res.status(403).send('User not found.');
+        } else {
+    
+            Juego.find( {$or:[ {'usuario': 'admin'}, {'usuario': user.name} ]}, function(err, juegos) {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).send(err.message);
+                };
+                res.status(200).jsonp(juegos);
+            });
+        };
     });
 };
 
 exports.getJuego = function(req, res) {  
-    //console.log('GET /juego id: ' +req.params.id);
-    
-    Juego.findById(req.params.id,function(err, juego) {
+    obtenerUsuarioToken(req, function(err, user) {
         if (err) {
             console.log(err);
-            return res.status(500).send(err.message);
+            res.status(500).send(err.message);
         };
-        if (juego)
-            res.status(200).jsonp(juego);
-        else
-            res.status(404).send("Juego no encontrado");
+ 
+        if (!user) {
+            console.log('User not found.');
+            return res.status(403).send('User not found.');
+        } else {
+    
+            Juego.findById(req.params.id,function(err, juego) {
+                if (err) {
+                    console.log(err);
+                    res.status(500).send(err.message);
+                };
+                if (juego) {
+                    if ((juego.usuario === user.name) || (juego.usuario === 'admin')) 
+                        res.status(200).jsonp(juego);
+                    else {
+                        console.log('El usuario %s no tiene privilegios sobre el juego.', user.name);
+                        return res.status(403).send('El usuario ' + user.name + ' no tiene privilegios sobre el juego.');
+                    }
+                }
+                else
+                    res.status(404).send("Juego no encontrado");
+            });
+        };
     });
 };
 
 exports.putJuego = function(req, res) {  
-    verificarToken(req, res, true).then(function() {
-        actualizarJuego(req, res);
+    verificarToken(req, res).then(function(user) {
+        actualizarJuego(req, res, user);
     });
 };   
     
 exports.borrarJuego = function(req, res) {
-    verificarToken(req, res, true).then( function() {
-        deleteJuego(req, res);
+    verificarToken(req, res).then( function(user) {
+        deleteJuego(req, res, user);
     });
 };
 
@@ -488,7 +524,15 @@ function estadisticas(res, estad, err, user) {
                 cuenta: { $sum: 1  },
                 media_j: {$avg: "$jugadores.numero"}
             }};
-        var groupJuegos = { 
+        var groupJuegosUser = [ 
+            { $match: {
+                usuario: user.name
+            }},
+            { $group: {
+                _id: null,
+                cuenta: { $sum: 1  }
+            }}];
+        var groupJuegosAdmin = { 
             $group: {
                 _id: null,
                 cuenta: { $sum: 1  }
@@ -517,7 +561,10 @@ function estadisticas(res, estad, err, user) {
                 break;         
             case 'groupJuegos':
                 esquema = Juego;
-                groupVariable = groupJuegos;
+                if (user.rol === 'Consulta')
+                    groupVariable = groupJuegosUser;
+                else
+                    groupVariable = groupJuegosAdmin;
                 break;
             case 'groupUsuarios':
                 esquema = User;
