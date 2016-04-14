@@ -22,6 +22,9 @@ var UserSchema = new Schema({
         type: String,
         unique: true,
         required: true
+    },
+    idioma: {
+        type: String
     }
 });
  

@@ -172,7 +172,7 @@ router.get('/userinfo', passport.authenticate('jwt', { session: false}), functio
             if (!user) {
                 return res.status(403).send({success: false, msg: 'Authentication failed. User not found.'});
             } else {
-                res.json({success: true, name:user.name, rol: user.rol});
+                res.json({success: true, name:user.name, rol: user.rol, email: user.email, idioma: user.idioma});
             }
         });
     } else {
@@ -180,6 +180,10 @@ router.get('/userinfo', passport.authenticate('jwt', { session: false}), functio
     }
 });
 
+router.route('/idioma')
+    // route to authenticate a user (POST http://local-server:Port/api/idioma)
+    .post(score18xx_db.cambiarIdioma);
+    
 // Agregadores varios
 router.route('/pcount')
     // Cuenta de partidas (accessed at GET http://local-server:Port/api/pcount)

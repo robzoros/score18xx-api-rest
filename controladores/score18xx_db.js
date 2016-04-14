@@ -352,7 +352,8 @@ exports.crearUsuario = function(req, res) {
             name: req.body.name,
             password: req.body.password,
             rol: "Consulta",
-            email: req.body.email
+            email: req.body.email,
+            idioma: req.body.idioma
         });
 
         // save the user
@@ -469,7 +470,39 @@ exports.cambioPass = function(req, res) {
             });
         };
     });    
-}
+};
+
+exports.cambiarIdioma = function(req, res) {
+    obtenerUsuarioToken(req, function(err, user) {
+        if (err) {
+            console.log(err);
+            return res.status(500).send(err.message);
+        };
+ 
+        if (!user) {
+            console.log('User not found.');
+            return res.status(403).send('User not found.');
+        } else {
+
+            // Usuario encontrado, cambiamos idioma.
+            user.idioma = req.body.idioma;
+
+            // if user is found and password is right create a token
+            user.save(function(err) {
+                if (err) {
+                    console.log(err);
+                    return res.json(err);
+                }
+
+                // Mandamos nuevo token
+                var token = jwt.encode(user, config.secret);
+                // return the information including token as JSON
+                res.json({success: true, token: 'JWT ' + token, rol: user.rol, idioma: user.idioma});
+
+            });
+        };
+    });    
+};
 
 // ***********************************
 // Agregadores
