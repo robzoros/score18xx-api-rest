@@ -537,12 +537,12 @@ function estadisticas(res, estad, err, user) {
                 cuenta: { $sum: 1  },
                 media_j: {$avg: "$jugadores.numero"}
             }}];
-        var groupJxPartidaAdmin = { 
+        var groupJxPartidaAdmin = [{ 
             $group: {
                 _id: "$juego._name",
                 cuenta: { $sum: 1  },
                 media_j: {$avg: "$jugadores.numero"}
-            }};
+            }}];
         var groupPartidasUser = [
             { $match: {
                 usuario: user.name
@@ -551,12 +551,12 @@ function estadisticas(res, estad, err, user) {
                 _id: null,
                 cuenta: { $sum: 1  }
             }}];
-        var groupPartidasAdmin = { 
+        var groupPartidasAdmin = [{ 
             $group: {
                 _id: null,
                 cuenta: { $sum: 1  },
                 media_j: {$avg: "$jugadores.numero"}
-            }};
+            }}];
         var groupJuegosUser = [ 
             { $match: {
                 usuario: user.name
@@ -565,16 +565,16 @@ function estadisticas(res, estad, err, user) {
                 _id: null,
                 cuenta: { $sum: 1  }
             }}];
-        var groupJuegosAdmin = { 
+        var groupJuegosAdmin = [{ 
             $group: {
                 _id: null,
                 cuenta: { $sum: 1  }
-            }};
-        var groupUsuarios = {
+            }}];
+        var groupUsuarios = [{
             $group: {
                 _id: null,
                 cuenta: { $sum: 1  }
-            }};
+            }}];
         var esquema;
         var groupVariable;
         switch (estad) {
