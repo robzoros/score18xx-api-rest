@@ -1,2 +1,6 @@
 /config/score18xx-cert.pem
 /config/score18xx-key.pem
+node_modules/
+nbproject/
+.idea
+npm-debug.log
