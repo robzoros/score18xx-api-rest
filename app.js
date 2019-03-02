@@ -9,17 +9,23 @@ var express     = require("express"),
     User        = require('./models/user'), // get the mongoose model
     jwt         = require('jwt-simple'),
     fs          = require('fs'),
-    http        = require('http'),
-    global      = require('./global');
+    https       = require('https'),
+    key         = fs.readFileSync('./config/score18xx-key.pem'),
+    cert        = fs.readFileSync('./config/score18xx-cert.pem'),
+    global      = require('./global'),
+    https_options = {
+        key: key,
+        cert: cert
+    };
 
-// Connection to DB	
-mongoose.connect(config.database, function(err, res) {  
+// Connection to DB
+mongoose.connect(config.database, function(err, res) {
   if(err) {
      throw err;
   } else{
 	console.log('Conectado a MongoDB');
   }
-});	
+});
 
 // pass passport for configuration
 require('./config/passport')(passport);
@@ -30,7 +36,7 @@ var allowCrossDomain = function(req, res, next) {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-    
+
     // intercept OPTIONS method
     if ('OPTIONS' === req.method) {
         next();
@@ -51,7 +57,7 @@ app.use(bodyParser.json());
 
 // log to console
 app.use(morgan('dev'));
- 
+
 // Use the passport package in our application
 app.use(passport.initialize());
 
@@ -102,7 +108,7 @@ router.use(function(req, res, next) {
 
 // test route to make sure everything is working (accessed at GET http://local-server:Port/api)
 router.get('/', function(req, res) {
-    res.json({ message: 'hooray! welcome to our api!' });   
+    res.json({ message: 'hooray! welcome to our api!' });
 });
 
 // on routes that end in /partida
@@ -135,7 +141,7 @@ router.route('/juego/:id')
     // actualiza una juego (accessed at PUT http://local-server:Port/api/juego/id)
     .put(score18xx_db.putJuego)
     // borra una juego (accessed at DELETE http://local-server:Port/api/juego/id)
-    .delete(score18xx_db.borrarJuego);    
+    .delete(score18xx_db.borrarJuego);
 
 router.route('/juegos')
     // recoge todos los juegos (accessed at GET http://local-server:Port/api/juegos)
@@ -154,7 +160,7 @@ router.route('/autenticar')
     .put(score18xx_db.cambioPass);
 
 router.get('/userinfo', passport.authenticate('jwt', { session: false}), function(req, res) {
-    // route to a restricted info (GET http://local-server:Port/api/memberinfo)    
+    // route to a restricted info (GET http://local-server:Port/api/memberinfo)
     var token = global.getToken(req.headers);
     if (token) {
         var decoded = jwt.decode(token, config.secret);
@@ -177,7 +183,7 @@ router.get('/userinfo', passport.authenticate('jwt', { session: false}), functio
 router.route('/idioma')
     // route to authenticate a user (POST http://local-server:Port/api/idioma)
     .post(score18xx_db.cambiarIdioma);
-    
+
 // Agregadores varios
 router.route('/pcount')
     // Cuenta de partidas (accessed at GET http://local-server:Port/api/pcount)
@@ -186,7 +192,7 @@ router.route('/pcount')
 router.route('/pjcount')
     // Estadísticas de partidas por juegos (accessed at GET http://local-server:Port/api/pjcount)
     .get(score18xx_db.getCuentaJuegosP);
-    
+
 router.route('/jcount')
     // Estadísticas de partidas por juegos (accessed at GET http://local-server:Port/api/jcount)
     .get(score18xx_db.getCuentaJuegos);
@@ -201,15 +207,14 @@ router.route('/ucount')
 app.use('/api', router);
 
 //proxy
-app.use('/proxy', function(req, res) {  
+app.use('/proxy', function(req, res) {
     var url = req.url.replace('/?url=','');
     req.pipe(request(url)).pipe(res);
 });
 
-var server_port = process.env.NODEJS_PORT || 80;
-var server_ip_address = process.env.NODEJS_IP || '0.0.0.0';
+var server_port = NODEJS_PORT || 443;
+var server_ip_address = NODEJS_IP || '0.0.0.0';
 
-http.createServer(app).listen(server_port, server_ip_address, function() {
+https.createServer(https_options, app).listen(server_port, server_ip_address, function() {
     console.log( "Listening on " + server_ip_address + ", server_port " + server_port );
 });
-
