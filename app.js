@@ -9,14 +9,8 @@ var express     = require("express"),
     User        = require('./models/user'), // get the mongoose model
     jwt         = require('jwt-simple'),
     fs          = require('fs'),
-    https       = require('https'),
-    key         = fs.readFileSync('./config/score18xx-key.pem'),
-    cert        = fs.readFileSync('./config/score18xx-cert.pem'),
-    global      = require('./global'),
-    https_options = {
-        key: key,
-        cert: cert
-    };
+    http        = require('http'),
+    global      = require('./global');
 
 // Connection to DB	
 mongoose.connect(config.database, function(err, res) {  
@@ -212,10 +206,10 @@ app.use('/proxy', function(req, res) {
     req.pipe(request(url)).pipe(res);
 });
 
-var server_port = process.env.NODEJS_PORT || 443;
+var server_port = process.env.NODEJS_PORT || 80;
 var server_ip_address = process.env.NODEJS_IP || '0.0.0.0';
 
-https.createServer(https_options, app).listen(server_port, server_ip_address, function() {
+http.createServer(app).listen(server_port, server_ip_address, function() {
     console.log( "Listening on " + server_ip_address + ", server_port " + server_port );
 });
 
