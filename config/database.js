@@ -5,5 +5,6 @@ var databaseURL = 'mongodb://'
                     + process.env.DB_NAME
 module.exports = {
     'secret': process.env.SECRET_PS,
-    'database': databaseURL
+    'database': databaseURL,
+    'useNewUrlParser': true
 };

@@ -1,3 +1,7 @@
+// Process env: load enviroment variables
+require('dotenv').config();
+
+// Cargamos todos los datos
 var express     = require("express"),
     app         = express(),
     bodyParser  = require("body-parser"),
@@ -10,20 +14,18 @@ var express     = require("express"),
     jwt         = require('jwt-simple'),
     fs          = require('fs'),
     http        = require('http'),
-    global      = require('./global'),
-    dotenv      = require('dotenv');
+    global      = require('./global');
 
-// Process env
-dotenv.config();
-
-// Connection to DB	
-mongoose.connect(config.database, function(err, res) {  
+// Connection to DB
+mongoose.connect(config.database, { useNewUrlParser: true }, function(err, res) {  
+//mongoose.connect(config.database, function(err, res) {  
   if(err) {
      throw err;
   } else{
 	console.log('Conectado a MongoDB');
   }
 });	
+mongoose.set('useCreateIndex', true);	
 
 // pass passport for configuration
 require('./config/passport')(passport);
@@ -210,10 +212,10 @@ app.use('/proxy', function(req, res) {
     req.pipe(request(url)).pipe(res);
 });
 
-var server_port = process.env.NODEJS_PORT || 80;
-var server_ip_address = process.env.NODEJS_IP || '0.0.0.0';
+var server_port = process.env.PORT || 8080;
+//var server_ip_address = process.env.NODEJS_IP || '0.0.0.0';
 
-http.createServer(app).listen(server_port, server_ip_address, function() {
-    console.log( "Listening on " + server_ip_address + ", server_port " + server_port );
+http.createServer(app).listen(server_port, function() {
+    console.log( "Listening on server_port " + server_port );
 });
 
