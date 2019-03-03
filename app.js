@@ -10,7 +10,11 @@ var express     = require("express"),
     jwt         = require('jwt-simple'),
     fs          = require('fs'),
     http        = require('http'),
-    global      = require('./global');
+    global      = require('./global'),
+    dotenv      = require('dotenv');
+
+// Process env
+dotenv.config();
 
 // Connection to DB	
 mongoose.connect(config.database, function(err, res) {  
