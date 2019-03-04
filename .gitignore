@@ -4,3 +4,5 @@ node_modules/
 nbproject/
 .idea
 npm-debug.log
+package-log.json
+.env
