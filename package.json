@@ -7,7 +7,7 @@
         "bcrypt-nodejs": ">=0.0.3",
         "body-parser": "~1.9.2",
         "express": "^4.16.4",
-        "jwt-simple": "^0.3.1",
+        "jwt-simple": ">=0.5.3",
         "mongoose": "5.x",
         "morgan": "^1.9.1",
         "nodemailer": "^2.3.0",
