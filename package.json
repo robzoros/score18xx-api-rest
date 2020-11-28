@@ -13,7 +13,7 @@
         "nodemailer": "^2.3.0",
         "passport": "^0.3.0",
         "passport-jwt": "^1.2.1",
-        "request": "*",
+        "request": "^2.88.2",
         "dotenv": "*"
     },
     "license": "MIT",
